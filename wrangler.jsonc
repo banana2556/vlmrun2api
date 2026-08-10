@@ -1,0 +1,26 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "vlmrun-openai-proxy",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-06",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "UPSTREAM_BASE_URL": "https://agent.vlm.run/v1",
+    "CHAT_COMPLETIONS_URL": "https://agent.vlm.run/v1/chat/completions",
+    "MODEL_ENDPOINT": "https://agent.vlm.run/v1/models",
+    "DEFAULT_MODEL": "vlmrun-orion-2:opus-5",
+    "MODELS": "vlmrun-orion-2:opus-5",
+    "CORS_ORIGIN": "*",
+    "VLM_TOOLSETS": "core,document,image,image-gen,video,viz,web,world-gen",
+    "VLM_PREVIEW": "true",
+    "VLM_ORIGIN": "https://chat.vlm.run",
+    "VLM_REFERER": "https://chat.vlm.run/",
+    "UPSTREAM_TIMEOUT_MS": "120000",
+    "MAX_BODY_BYTES": "10485760"
+  },
+  "observability": {
+    "enabled": true,
+    "logs": { "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.01 }
+  }
+}

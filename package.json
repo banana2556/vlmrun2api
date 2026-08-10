@@ -1,0 +1,24 @@
+{
+  "name": "vlmrun-openai-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "wrangler dev --local",
+    "dev": "wrangler dev --local",
+    "legacy:start": "node --env-file=.env server.mjs",
+    "test": "node --test test/server.test.mjs",
+    "test:e2e": "node test/e2e.mjs",
+    "check:worker": "wrangler check",
+    "types": "wrangler types"
+  },
+  "engines": {
+    "node": ">=20.6"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260804.1",
+    "@types/node": "^26.1.2",
+    "wrangler": "^4.119.0"
+  }
+}

@@ -1,0 +1,8 @@
+API_KEY=local-test-key
+VLM_SESSION_TOKEN=
+VLM_BROWSER_FINGERPRINT=
+UPSTREAM_BASE_URL=https://agent.vlm.run/v1
+CHAT_COMPLETIONS_URL=https://agent.vlm.run/v1/chat/completions
+MODEL_ENDPOINT=https://agent.vlm.run/v1/models
+DEFAULT_MODEL=vlmrun-orion-2:opus-5
+MODELS=vlmrun-orion-2:opus-5
