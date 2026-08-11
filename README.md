@@ -323,6 +323,26 @@ npx wrangler deploy
 
 Wrangler prints the deployed Worker URL after a successful deployment.
 
+## Continuous deployment
+
+The workflow in `.github/workflows/deploy.yml` deploys automatically after every push to `main`. It runs unit tests, Wrangler E2E, generated type checks, and a deployment dry run before deploying.
+
+Add these GitHub repository secrets:
+
+| Secret | Value |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with Workers Scripts write access |
+| `CLOUDFLARE_ACCOUNT_ID` | `380bc2b1e872e857b1b94ec8d759cbfe` |
+
+Configure secrets with GitHub CLI:
+
+```powershell
+gh secret set CLOUDFLARE_API_TOKEN --repo banana2556/vlmrun2api
+gh secret set CLOUDFLARE_ACCOUNT_ID --body 380bc2b1e872e857b1b94ec8d759cbfe --repo banana2556/vlmrun2api
+```
+
+The workflow can also be started manually from the GitHub Actions tab.
+
 ### Production settings
 
 Set these values before deployment:
