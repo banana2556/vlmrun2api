@@ -6,8 +6,8 @@
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
     "UPSTREAM_BASE_URL": "https://agent.vlm.run/v1",
-    "CHAT_COMPLETIONS_URL": "https://agent.vlm.run/v1/chat/completions",
-    "MODEL_ENDPOINT": "https://agent.vlm.run/v1/models",
+    "CHAT_COMPLETIONS_URL": "https://agent.vlm.run/v1/openai/chat/completions",
+    "MODEL_ENDPOINT": "https://agent.vlm.run/v1/openai/models",
     "DEFAULT_MODEL": "vlmrun-orion-2:opus-5",
     "MODELS": "vlmrun-orion-2:opus-5",
     "CORS_ORIGIN": "*",

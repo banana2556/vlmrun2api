@@ -32,8 +32,8 @@ function config(env) {
   return {
     apiKey: env.API_KEY || '',
     corsOrigin: env.CORS_ORIGIN || '*',
-    chatEndpoint: env.CHAT_COMPLETIONS_URL || `${upstreamBase}/chat/completions`,
-    modelEndpoint: env.MODEL_ENDPOINT || `${upstreamBase}/models`,
+    chatEndpoint: env.CHAT_COMPLETIONS_URL || `${upstreamBase}/openai/chat/completions`,
+    modelEndpoint: env.MODEL_ENDPOINT || `${upstreamBase}/openai/models`,
     defaultModel,
     models: [...new Set([defaultModel, ...models])],
     sessionToken: env.VLM_SESSION_TOKEN || '',

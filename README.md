@@ -60,8 +60,8 @@ Non-secret configuration is stored in [wrangler.jsonc](wrangler.jsonc).
 | Variable | Default | Description |
 | --- | --- | --- |
 | `UPSTREAM_BASE_URL` | `https://agent.vlm.run/v1` | Upstream API base URL |
-| `CHAT_COMPLETIONS_URL` | `https://agent.vlm.run/v1/chat/completions` | Upstream chat completion endpoint |
-| `MODEL_ENDPOINT` | `https://agent.vlm.run/v1/models` | Upstream model list endpoint |
+| `CHAT_COMPLETIONS_URL` | `https://agent.vlm.run/v1/openai/chat/completions` | Upstream chat completion endpoint |
+| `MODEL_ENDPOINT` | `https://agent.vlm.run/v1/openai/models` | Upstream model list endpoint |
 | `DEFAULT_MODEL` | `vlmrun-orion-2:opus-5` | Model used when a request omits `model` |
 | `MODELS` | `vlmrun-orion-2:opus-5` | Comma-separated fallback model IDs |
 | `VLM_TOOLSETS` | `core,document,image,image-gen,video,viz,web,world-gen` | Comma-separated toolsets |
