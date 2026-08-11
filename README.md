@@ -114,11 +114,7 @@ npm run dev
 
 The default local address is `http://127.0.0.1:8787`.
 
-The local Worker uses the values from `wrangler.jsonc` and `.dev.vars`. Set `API_KEY` only when client authentication is required.
-
-```http
-Authorization: Bearer <API_KEY>
-```
+The local Worker uses the values from `wrangler.jsonc` and `.dev.vars`. Anonymous requests do not require an authorization header.
 
 ## API reference
 
@@ -126,7 +122,6 @@ Authorization: Bearer <API_KEY>
 
 ```http
 GET /healthz
-Authorization: Bearer <API_KEY>
 ```
 
 Response:
@@ -141,7 +136,6 @@ Response:
 
 ```http
 GET /v1/models
-Authorization: Bearer <API_KEY>
 ```
 
 The Worker requests `MODEL_ENDPOINT` on every call. It accepts these upstream response shapes:
@@ -184,7 +178,6 @@ Response:
 
 ```http
 GET /v1/models/{model}
-Authorization: Bearer <API_KEY>
 ```
 
 The model must be present in the current dynamic model list or configured fallback list.
@@ -207,7 +200,6 @@ Example:
 
 ```bash
 curl https://<worker-domain>/v1/chat/completions \
-  -H "Authorization: Bearer <API_KEY>" \
   -H "Content-Type: application/json" \
   -d '{"model":"vlmrun-orion-2:opus-5","messages":[{"role":"user","content":"Hello"}],"stream":false}'
 ```
@@ -216,7 +208,6 @@ Streaming request:
 
 ```bash
 curl https://<worker-domain>/v1/chat/completions \
-  -H "Authorization: Bearer <API_KEY>" \
   -H "Content-Type: application/json" \
   -d '{"model":"vlmrun-orion-2:opus-5","messages":[{"role":"user","content":"Hello"}],"stream":true}'
 ```
@@ -250,7 +241,7 @@ When `VLM_SESSION_TOKEN` is configured, it replaces the generated anonymous sess
 import OpenAI from "openai";
 
 const client = new OpenAI({
-  apiKey: process.env.API_KEY,
+  apiKey: process.env.API_KEY || "anonymous",
   baseURL: "https://<worker-domain>/v1"
 });
 
@@ -292,7 +283,7 @@ Errors use an OpenAI-compatible shape:
 | Status | Type | Meaning |
 | --- | --- | --- |
 | `400` | `invalid_request_error` | Invalid JSON, model, or messages |
-| `401` | `authentication_error` | Missing or invalid API key |
+| `401` | `authentication_error` | Missing or invalid API key when `API_KEY` is configured |
 | `404` | `not_found_error` | Model or route not found |
 | `413` | `invalid_request_error` | Request exceeds `MAX_BODY_BYTES` |
 | `502` | `upstream_error` | Upstream request failed |
