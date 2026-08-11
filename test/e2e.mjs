@@ -55,13 +55,13 @@ const mock = await startMockUpstream(mockPort);
 const worker = spawn(process.execPath, [
   wrangler, 'dev', '--local', '--ip', '127.0.0.1', '--port', String(workerPort),
   '--show-interactive-dev-session=false',
-  '--var', 'API_KEY:local-test-key',
+  '--var', 'API_KEY:',
   '--var', `UPSTREAM_BASE_URL:http://127.0.0.1:${mockPort}/v1`,
   '--var', `CHAT_COMPLETIONS_URL:http://127.0.0.1:${mockPort}/v1/chat/completions`,
   '--var', `MODEL_ENDPOINT:http://127.0.0.1:${mockPort}/v1/models`,
   '--var', 'DEFAULT_MODEL:e2e-model',
   '--var', 'MODELS:e2e-model',
-  '--var', 'VLM_SESSION_TOKEN:local-session-token'
+  '--var', 'VLM_SESSION_TOKEN:'
 ], {
   cwd,
   env: { ...process.env, CI: '1' },
@@ -75,29 +75,42 @@ let workerRunning = true;
 worker.once('exit', () => { workerRunning = false; });
 
 try {
-  const auth = { authorization: 'Bearer local-test-key' };
-  const health = await waitFor(`http://127.0.0.1:${workerPort}/healthz`, { headers: auth }, () => workerRunning);
+  const health = await waitFor(`http://127.0.0.1:${workerPort}/healthz`, {}, () => workerRunning);
   assert.equal(health.status, 200);
 
-  const models = await fetch(`http://127.0.0.1:${workerPort}/v1/models`, { headers: auth });
+  const models = await fetch(`http://127.0.0.1:${workerPort}/v1/models`);
   assert.equal(models.status, 200);
   assert.equal((await models.json()).data[0].id, 'e2e-model');
 
-  const completion = await fetch(`http://127.0.0.1:${workerPort}/v1/chat/completions`, {
-    method: 'POST',
-    headers: { ...auth, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: 'e2e-model',
-      messages: [{ role: 'user', content: 'hello' }],
-      stream: true
-    })
-  });
-  assert.equal(completion.status, 200);
-  const text = await completion.text();
-  assert.match(text, /local-ok/);
-  assert.match(text, /data: \[DONE\]/);
-  assert.equal(mock.requests[0].model, 'e2e-model');
-  assert.equal(mock.requests[0].session_token, 'local-session-token');
+  for (let index = 0; index < 2; index += 1) {
+    const completion = await fetch(`http://127.0.0.1:${workerPort}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: 'e2e-model',
+        messages: [{ role: 'user', content: 'hello' }],
+        stream: true,
+        session_id: 'client-session',
+        session_token: 'client-token'
+      })
+    });
+    assert.equal(completion.status, 200);
+    const text = await completion.text();
+    assert.match(text, /local-ok/);
+    assert.match(text, /data: \[DONE\]/);
+  }
+
+  const first = mock.requests[0];
+  const second = mock.requests[1];
+  assert.equal(first.body.model, 'e2e-model');
+  assert.match(first.body.session_id, /^[0-9a-f-]{36}$/);
+  assert.match(first.body.session_token, /^[0-9a-f]{40}$/);
+  assert.match(first.fingerprint, /^[0-9a-f]{32}$/);
+  assert.notEqual(first.body.session_id, second.body.session_id);
+  assert.notEqual(first.body.session_token, second.body.session_token);
+  assert.notEqual(first.fingerprint, second.fingerprint);
+  assert.notEqual(first.body.session_id, 'client-session');
+  assert.notEqual(first.body.session_token, 'client-token');
 
   console.log('wrangler local E2E passed');
 } catch (error) {

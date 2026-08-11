@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
@@ -24,6 +24,10 @@ function positiveInt(value, fallback) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function randomHex(bytes) {
+  return randomBytes(bytes).toString('hex');
+}
+
 export function config(env = process.env) {
   const upstreamBase = (env.UPSTREAM_BASE_URL || DEFAULT_UPSTREAM).replace(/\/+$/, '');
   const models = csv(env.MODELS);
@@ -40,8 +44,6 @@ export function config(env = process.env) {
     defaultModel,
     models: [...new Set([defaultModel, ...models])],
     sessionToken: env.VLM_SESSION_TOKEN || '',
-    sessionId: env.VLM_SESSION_ID || '',
-    browserFingerprint: env.VLM_BROWSER_FINGERPRINT || '',
     toolsets: csv(env.VLM_TOOLSETS),
     preview: bool(env.VLM_PREVIEW, true),
     origin: env.VLM_ORIGIN || 'https://chat.vlm.run',
@@ -114,16 +116,16 @@ function authorized(req, configured) {
   return bearer === `Bearer ${configured.apiKey}` || req.headers['x-api-key'] === configured.apiKey;
 }
 
-function upstreamHeaders(configured, accept = 'application/json') {
+function upstreamHeaders(configured, accept = 'application/json', fingerprint = randomHex(16)) {
   const headers = {
     accept,
     'content-type': 'application/json',
     'user-agent': configured.userAgent,
     origin: configured.origin,
     referer: configured.referer,
-    'x-api-base-url': configured.apiBaseUrl
+    'x-api-base-url': configured.apiBaseUrl,
+    'x-browser-fingerprint': fingerprint
   };
-  if (configured.browserFingerprint) headers['x-browser-fingerprint'] = configured.browserFingerprint;
   return headers;
 }
 
@@ -178,7 +180,7 @@ async function fetchModels(configured, fetchImpl) {
   return configured.models;
 }
 
-function forwardedBody(body, configured) {
+function forwardedBody(body, configured, identity) {
   const model = body.model === undefined ? configured.defaultModel : body.model;
   if (typeof model !== 'string' || !model.trim()) {
     throw new HttpError(400, 'model must be a non-empty string');
@@ -190,10 +192,18 @@ function forwardedBody(body, configured) {
   return {
     ...body,
     model: model.trim(),
-    session_id: body.session_id || configured.sessionId || randomUUID(),
-    ...(body.session_token || !configured.sessionToken ? {} : { session_token: configured.sessionToken }),
+    session_id: identity.sessionId,
+    session_token: identity.sessionToken,
     ...(body.preview === undefined ? { preview: configured.preview } : {}),
     ...(body.toolsets === undefined && configured.toolsets.length ? { toolsets: configured.toolsets } : {})
+  };
+}
+
+function requestIdentity(configured) {
+  return {
+    sessionId: randomUUID(),
+    sessionToken: configured.sessionToken || randomHex(20),
+    fingerprint: randomHex(16)
   };
 }
 
@@ -209,11 +219,12 @@ async function proxyChat(req, res, configured, fetchImpl) {
     throw new HttpError(400, 'Request body must be a JSON object');
   }
 
-  const requestBody = forwardedBody(body, configured);
+  const identity = requestIdentity(configured);
+  const requestBody = forwardedBody(body, configured, identity);
   const streaming = requestBody.stream === true;
   const response = await fetchImpl(configured.chatEndpoint, {
     method: 'POST',
-    headers: upstreamHeaders(configured, streaming ? 'text/event-stream' : 'application/json'),
+    headers: upstreamHeaders(configured, streaming ? 'text/event-stream' : 'application/json', identity.fingerprint),
     body: JSON.stringify(requestBody),
     signal: timeoutSignal(configured.timeoutMs)
   });

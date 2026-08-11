@@ -17,7 +17,7 @@ export async function startMockUpstream(port = 8788) {
 
     if (req.method === 'POST' && url.pathname === '/v1/chat/completions') {
       const body = await readBody(req);
-      requests.push(body);
+      requests.push({ body, fingerprint: req.headers['x-browser-fingerprint'] });
       res.writeHead(200, {
         'cache-control': 'no-cache',
         'content-type': 'text/event-stream'

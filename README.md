@@ -13,6 +13,7 @@ Released under the [MIT License](LICENSE).
 - Dynamic model discovery through an upstream `/models` endpoint
 - Configurable fallback model list
 - VLM Run session and toolset forwarding
+- Anonymous per-request session, token, and fingerprint generation
 - API key authentication
 - CORS configuration
 - Request size and upstream timeout limits
@@ -34,7 +35,7 @@ Cloudflare Worker
 VLM Run API
 ```
 
-The Worker does not store conversations, model responses, or session state. Each request is forwarded to VLM Run. A `session_id` supplied by the client is preserved; otherwise the Worker generates one with `crypto.randomUUID()`.
+The Worker does not store conversations, model responses, or session state. Each chat request receives a new `session_id`, session token, and browser fingerprint. Client-provided identity values are ignored.
 
 ## Requirements
 
@@ -42,7 +43,7 @@ The Worker does not store conversations, model responses, or session state. Each
 - npm
 - Cloudflare account with Workers access
 - Wrangler 4 or later
-- VLM Run session token
+- VLM Run API access
 
 ## Installation
 
@@ -79,17 +80,14 @@ The Worker reads secrets from the Cloudflare environment.
 
 | Secret | Required | Description |
 | --- | --- | --- |
-| `API_KEY` | Yes | API key required by Worker clients |
-| `VLM_SESSION_TOKEN` | Yes | VLM Run session token |
-| `VLM_BROWSER_FINGERPRINT` | No | Optional VLM Run browser fingerprint |
-| `VLM_SESSION_ID` | No | Default session ID for requests without one |
+| `API_KEY` | No | Optional client authentication secret; omit for anonymous access |
+| `VLM_SESSION_TOKEN` | No | Optional issued VLM Run token; omit for per-request anonymous generation |
 
-Production secrets:
+Optional production secrets:
 
 ```powershell
 npx wrangler secret put API_KEY
 npx wrangler secret put VLM_SESSION_TOKEN
-npx wrangler secret put VLM_BROWSER_FINGERPRINT
 ```
 
 List configured secret names:
@@ -104,7 +102,7 @@ npx wrangler secret list
 Copy-Item .dev.vars.example .dev.vars
 ```
 
-Set `VLM_SESSION_TOKEN` in `.dev.vars` before connecting to the real upstream. `.dev.vars` is ignored by Git.
+`.dev.vars` is ignored by Git. Leave `API_KEY` and `VLM_SESSION_TOKEN` unset for anonymous mode.
 
 ## Local development
 
@@ -116,7 +114,7 @@ npm run dev
 
 The default local address is `http://127.0.0.1:8787`.
 
-The local Worker uses the values from `wrangler.jsonc` and `.dev.vars`. Local requests require:
+The local Worker uses the values from `wrangler.jsonc` and `.dev.vars`. Set `API_KEY` only when client authentication is required.
 
 ```http
 Authorization: Bearer <API_KEY>
@@ -229,6 +227,8 @@ Streaming responses use `text/event-stream` and end with:
 data: [DONE]
 ```
 
+For every chat request, the Worker generates a new 36-character `session_id`, a new 40-character anonymous session token, and a new 32-character hexadecimal `x-browser-fingerprint` header for the upstream request. Client-provided `session_id` and `session_token` values are replaced.
+
 The Worker preserves additional request fields, including:
 
 - `stream`
@@ -242,7 +242,7 @@ The Worker preserves additional request fields, including:
 - `toolsets`
 - provider-specific fields
 
-When `session_token` is not present in the request body, `VLM_SESSION_TOKEN` is injected. When `preview` or `toolsets` are omitted, the corresponding Worker configuration is injected.
+When `VLM_SESSION_TOKEN` is configured, it replaces the generated anonymous session token. When `preview` or `toolsets` are omitted, the corresponding Worker configuration is injected.
 
 ### OpenAI SDK
 
@@ -274,7 +274,7 @@ Authorization: Bearer <API_KEY>
 x-api-key: <API_KEY>
 ```
 
-If `API_KEY` is not configured, the Worker allows unauthenticated requests. Configure `API_KEY` before public deployment.
+If `API_KEY` is not configured, the Worker allows anonymous requests. Configure `API_KEY` when client authentication is required.
 
 ### Error responses
 
@@ -322,7 +322,6 @@ Configure production secrets:
 ```powershell
 npx wrangler secret put API_KEY
 npx wrangler secret put VLM_SESSION_TOKEN
-npx wrangler secret put VLM_BROWSER_FINGERPRINT
 ```
 
 Deploy:
@@ -337,12 +336,12 @@ Wrangler prints the deployed Worker URL after a successful deployment.
 
 Set these values before deployment:
 
-1. `API_KEY` as a Worker secret.
-2. `VLM_SESSION_TOKEN` as a Worker secret.
-3. `CORS_ORIGIN` to the exact browser origin when browser access is required.
-4. `MODEL_ENDPOINT` to the authenticated model endpoint used by the VLM Run account.
-5. `MODELS` to a known fallback list.
-6. `UPSTREAM_TIMEOUT_MS` and `MAX_BODY_BYTES` for the expected workload.
+1. Leave `API_KEY` unset for anonymous access, or configure it as a Worker secret for client authentication.
+2. Leave `VLM_SESSION_TOKEN` unset for generated anonymous sessions, or configure an issued token as a Worker secret when required by the upstream account.
+3. Set `CORS_ORIGIN` to the exact browser origin when browser access is required.
+4. Set `MODEL_ENDPOINT` to the model endpoint used by the VLM Run account.
+5. Set `MODELS` to a known fallback list.
+6. Set `UPSTREAM_TIMEOUT_MS` and `MAX_BODY_BYTES` for the expected workload.
 
 ### Logs
 
@@ -366,7 +365,7 @@ End-to-end test:
 npm run test:e2e
 ```
 
-The E2E test starts Wrangler in local mode, starts an isolated upstream test server, verifies authentication, checks dynamic model discovery, sends a chat completion request, validates SSE output, and verifies forwarded session data.
+The E2E test starts Wrangler in local mode, starts an isolated upstream test server, verifies anonymous access, checks dynamic model discovery, sends two chat completion requests, validates SSE output, and verifies that session IDs, session tokens, and fingerprints rotate between requests.
 
 Deployment validation:
 
@@ -390,6 +389,7 @@ worker-configuration.d.ts Generated Wrangler types
 ## Production limitations
 
 - Model availability is controlled by the VLM Run account and upstream endpoint.
+- Anonymous session generation depends on the upstream accepting generated session tokens.
 - The Worker does not implement persistent conversation storage.
 - The Worker does not implement per-user quotas or rate limiting.
 - Public traffic should be protected with `API_KEY`, Cloudflare WAF, or Cloudflare Rate Limiting.
